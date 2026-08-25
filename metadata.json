@@ -1,0 +1,6 @@
+{
+  "name": "Lumina Library - Sistem Manajemen Perpustakaan",
+  "description": "Sistem manajemen perpustakaan modern dengan katalog digital, sirkulasi transaksi, analitik sirkulasi, sinkronisasi Google Sheets / Apps Script, mode gelap/terang, ekspor PDF/Excel, notifikasi push, dan dukungan offline.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
