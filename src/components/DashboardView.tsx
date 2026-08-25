@@ -15,8 +15,9 @@ import {
   Sparkles, 
   Calendar, 
   Database,
-  CloudCheck,
-  RotateCcw
+  RotateCcw,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Book, Member, Transaction, SyncConfig, SchoolProfile } from '../types';
 
@@ -24,15 +25,19 @@ interface DashboardViewProps {
   books: Book[];
   members: Member[];
   transactions: Transaction[];
-  syncConfig: SyncConfig;
+  syncConfig?: SyncConfig;
   school: SchoolProfile;
-  onOpenNewMemberModal: () => void;
-  onOpenNewBookModal: () => void;
-  onOpenNewTransactionModal: () => void;
-  onOpenScanner: () => void;
-  onSelectBook: (book: Book) => void;
-  onReturnBook: (trxId: string) => void;
+  onOpenNewMemberModal?: () => void;
+  onOpenNewBookModal?: () => void;
+  onOpenNewTransactionModal?: () => void;
+  onOpenNewLoan?: () => void;
+  onOpenScanner?: () => void;
+  onSelectBook?: (book: Book) => void;
+  onSelectBookDetail?: (book: Book) => void;
+  onReturnBook?: (trxId: string) => void;
   onNavigateTab: (tab: any) => void;
+  onExportTransactionsCSV?: () => void;
+  onOpenDueDateWarning?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -44,15 +49,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewMemberModal,
   onOpenNewBookModal,
   onOpenNewTransactionModal,
+  onOpenNewLoan,
   onOpenScanner,
   onSelectBook,
+  onSelectBookDetail,
   onReturnBook,
   onNavigateTab,
+  onExportTransactionsCSV,
+  onOpenDueDateWarning,
 }) => {
+  const handleOpenLoan = onOpenNewLoan || onOpenNewTransactionModal || (() => onNavigateTab('circulation'));
+  const handleSelectBook = onSelectBookDetail || onSelectBook || (() => {});
+  const today = new Date().toISOString().slice(0, 10);
+
   // Calculated Metrics
-  const totalBooksCount = books.reduce((acc, b) => acc + b.copiesTotal, 0);
+  const totalBooksCount = books.reduce((acc, b) => acc + (b.totalCopies || b.copiesTotal || 1), 0);
   const activeLoansCount = transactions.filter(t => t.status === 'borrowed').length;
-  const overdueCount = transactions.filter(t => t.status === 'overdue').length;
+  const overdueCount = transactions.filter(t => t.status === 'borrowed' && t.dueDate < today).length;
   const totalMembersCount = members.length;
 
   const featuredBook = books.find(b => b.isFeatured) || books[0];
@@ -81,28 +94,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             id="btn-dash-new-loan"
-            onClick={onOpenNewTransactionModal}
+            onClick={handleOpenLoan}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm shadow-lg shadow-emerald-500/20 transition active:scale-[0.98]"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Pinjam Buku Baru</span>
           </button>
-          <button
-            id="btn-dash-scanner"
-            onClick={onOpenScanner}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm border border-slate-700 transition"
-          >
-            <QrCode className="w-4 h-4 text-emerald-400" />
-            <span>Pindai Pengembalian</span>
-          </button>
-          <button
-            id="btn-dash-new-member"
-            onClick={onOpenNewMemberModal}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm border border-slate-700 transition"
-          >
-            <UserPlus className="w-4 h-4 text-cyan-400" />
-            <span>Anggota Baru</span>
-          </button>
+          {onOpenDueDateWarning && overdueCount > 0 && (
+            <button
+              id="btn-dash-due-date-alert"
+              onClick={onOpenDueDateWarning}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold text-sm border border-rose-500/40 shadow-sm transition active:scale-[0.98]"
+            >
+              <AlertCircle className="w-4 h-4 text-rose-400 animate-pulse" />
+              <span>{overdueCount} Buku Jatuh Tempo</span>
+            </button>
+          )}
+          {onExportTransactionsCSV && (
+            <button
+              id="btn-dash-export-csv"
+              onClick={onExportTransactionsCSV}
+              title="Ekspor seluruh data transaksi sirkulasi ke file CSV"
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-medium text-sm border border-emerald-500/30 hover:border-emerald-500/50 transition active:scale-[0.98]"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span>Ekspor ke CSV</span>
+            </button>
+          )}
+          {onOpenScanner && (
+            <button
+              id="btn-dash-scanner"
+              onClick={onOpenScanner}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm border border-slate-700 transition"
+            >
+              <QrCode className="w-4 h-4 text-emerald-400" />
+              <span>Pindai Pengembalian</span>
+            </button>
+          )}
+          {onOpenNewMemberModal && (
+            <button
+              id="btn-dash-new-member"
+              onClick={onOpenNewMemberModal}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm border border-slate-700 transition"
+            >
+              <UserPlus className="w-4 h-4 text-cyan-400" />
+              <span>Anggota Baru</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -155,7 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Metric 3: Terlambat */}
         <div 
           id="stat-overdue-loans"
-          onClick={() => onNavigateTab('circulation')}
+          onClick={() => onOpenDueDateWarning ? onOpenDueDateWarning() : onNavigateTab('circulation')}
           className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-red-500/50 transition cursor-pointer group shadow-lg"
         >
           <div className="flex items-center justify-between">
@@ -204,18 +242,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Left 2 Cols: Recent Transactions */}
         <div className="lg:col-span-2 space-y-4">
           <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
               <div>
                 <h3 className="font-bold text-base text-white">Transaksi Sirkulasi Terkini</h3>
                 <p className="text-xs text-slate-400">Peminjaman dan pengembalian buku waktu-nyata</p>
               </div>
-              <button
-                id="btn-view-all-circulation"
-                onClick={() => onNavigateTab('circulation')}
-                className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
-              >
-                Lihat Semua Sirkulasi <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-3">
+                {onExportTransactionsCSV && (
+                  <button
+                    id="btn-recent-export-csv"
+                    onClick={onExportTransactionsCSV}
+                    title="Unduh data seluruh transaksi sirkulasi dalam format CSV"
+                    className="text-xs text-slate-300 hover:text-emerald-400 font-medium flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700/80 transition"
+                  >
+                    <Download className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Ekspor CSV</span>
+                  </button>
+                )}
+                <button
+                  id="btn-view-all-circulation"
+                  onClick={() => onNavigateTab('circulation')}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1"
+                >
+                  Lihat Semua Sirkulasi <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -305,7 +356,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Enkripsi AES-256 Aktif • Terakhir Disinkron: <span className="text-slate-300 font-mono">{syncConfig.lastSyncedAt || 'Waktu Nyata'}</span>
+                  Enkripsi AES-256 Aktif • Terakhir Disinkron: <span className="text-slate-300 font-mono">{syncConfig?.lastSyncedAt || 'Waktu Nyata'}</span>
                 </p>
               </div>
             </div>

@@ -50,10 +50,14 @@ export const INITIAL_SYNC_CONFIG: SyncConfig = {
 export function getStoredData<T>(key: string, defaultValue: T): T {
   try {
     const item = localStorage.getItem(key);
-    if (!item) return defaultValue;
-    return JSON.parse(item);
-  } catch (e) {
-    console.warn(`Error reading localStorage for key ${key}:`, e);
+    if (!item || item === 'undefined' || item === 'null') return defaultValue;
+    const parsed = JSON.parse(item);
+    if (parsed === null || parsed === undefined) return defaultValue;
+    if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
+      return { ...defaultValue, ...parsed };
+    }
+    return parsed;
+  } catch {
     return defaultValue;
   }
 }
@@ -61,8 +65,8 @@ export function getStoredData<T>(key: string, defaultValue: T): T {
 export function setStoredData<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error(`Error saving localStorage for key ${key}:`, e);
+  } catch {
+    // Storage quota or serialization handled
   }
 }
 
@@ -133,7 +137,13 @@ export class LibraryStore {
 
   // Sync Config
   static getSyncConfig(): SyncConfig {
-    return getStoredData(STORAGE_KEYS.SYNC_CONFIG, INITIAL_SYNC_CONFIG);
+    const config = getStoredData(STORAGE_KEYS.SYNC_CONFIG, INITIAL_SYNC_CONFIG);
+    return {
+      ...INITIAL_SYNC_CONFIG,
+      ...(config || {}),
+      lastSyncedAt: (config && config.lastSyncedAt) ? config.lastSyncedAt : (INITIAL_SYNC_CONFIG.lastSyncedAt || 'Aktif'),
+      syncStatus: (config && config.syncStatus) ? config.syncStatus : 'synced',
+    };
   }
   static saveSyncConfig(config: SyncConfig): void {
     setStoredData(STORAGE_KEYS.SYNC_CONFIG, config);
@@ -197,8 +207,7 @@ export class LibraryStore {
       if (parsed.chats) this.saveChats(parsed.chats);
       if (parsed.auditLogs) this.saveAuditLogs(parsed.auditLogs);
       return true;
-    } catch (e) {
-      console.error('Failed to import JSON backup:', e);
+    } catch {
       return false;
     }
   }

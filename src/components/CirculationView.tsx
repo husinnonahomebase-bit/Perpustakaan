@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Transaction, SchoolProfile } from '../types';
-import { exportTransactionsToPDF, exportToCSV } from '../utils/exportUtils';
+import { exportTransactionsToPDF, exportTransactionsToCSV, exportToCSV } from '../utils/exportUtils';
 
 interface CirculationViewProps {
   transactions: Transaction[];
@@ -78,20 +78,10 @@ export const CirculationView: React.FC<CirculationViewProps> = ({
   };
 
   const handleExportCSV = () => {
-    const csvData = filteredTransactions.map(t => ({
-      No_Transaksi: t.trxCode,
-      Nama_Anggota: t.memberName,
-      Kode_Anggota: t.memberCode,
-      Judul_Buku: t.bookTitle,
-      ISBN: t.bookIsbn,
-      Tgl_Pinjam: t.borrowDate,
-      Batas_Tempo: t.dueDate,
-      Tgl_Kembali: t.returnDate || '-',
-      Status: t.status,
-      Denda: t.fineAmount,
-      Petugas: t.processedBy
-    }));
-    exportToCSV(csvData, `Sirkulasi_${activeTab === 'active' ? 'Aktif' : 'Riwayat'}`);
+    exportTransactionsToCSV(
+      filteredTransactions,
+      `Data_Sirkulasi_${activeTab === 'active' ? 'Aktif' : 'Riwayat'}`
+    );
   };
 
   return (

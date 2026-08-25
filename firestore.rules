@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'husinnonahomebase@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isOwner(userId) && isValidId(userId) && (
+        incoming().keys().hasAll(['userId', 'email', 'role', 'createdAt']) &&
+        incoming().userId == request.auth.uid &&
+        incoming().email is string &&
+        incoming().role in ['admin', 'librarian', 'student', 'teacher', 'guest']
+      );
+
+      allow update: if isOwner(userId) && isValidId(userId) && (
+        incoming().userId == existing().userId &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        (!incoming().diff(existing()).affectedKeys().hasAny(['role']) || isAdmin())
+      );
+
+      allow delete: if isAdmin();
+
+      // User Bookmarks subcollection
+      match /bookmarks/{bookmarkId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(bookmarkId) &&
+          incoming().keys().hasAll(['bookId', 'title', 'savedAt']) &&
+          incoming().bookId is string &&
+          incoming().title is string;
+        allow update: if isOwner(userId) && isValidId(bookmarkId);
+        allow delete: if isOwner(userId) && isValidId(bookmarkId);
+      }
+    }
+
+    // 2. Global Books Catalog
+    match /books/{bookId} {
+      allow get, list: if isSignedIn();
+      allow create: if isVerifiedUser() && isValidId(bookId) &&
+        incoming().keys().hasAll(['id', 'title', 'author', 'isbn', 'category']) &&
+        incoming().title is string && incoming().title.size() <= 300 &&
+        incoming().author is string && incoming().author.size() <= 200;
+      allow update: if isVerifiedUser() && isValidId(bookId) &&
+        incoming().id == existing().id;
+      allow delete: if isAdmin() && isValidId(bookId);
+    }
+
+    // 3. Circulation Transactions
+    match /transactions/{transactionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isVerifiedUser() && isValidId(transactionId) &&
+        incoming().keys().hasAll(['id', 'trxCode', 'memberId', 'memberName', 'bookId', 'bookTitle', 'borrowDate', 'dueDate', 'status']) &&
+        incoming().trxCode is string && incoming().trxCode.size() <= 50;
+      allow update: if isVerifiedUser() && isValidId(transactionId) &&
+        incoming().id == existing().id;
+      allow delete: if isAdmin() && isValidId(transactionId);
+    }
+  }
+}

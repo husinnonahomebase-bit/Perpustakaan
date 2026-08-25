@@ -10,6 +10,9 @@ export type BookCategory =
   | 'Filsafat & Pengembangan Diri'
   | 'Buku Pelajaran & Referensi';
 
+export type BookCondition = 'Baik' | 'Rusak Ringan' | 'Rusak Berat' | 'Dalam Perawatan' | 'Hilang';
+export type StockOpnameStatus = 'Verified' | 'Pending' | 'Discrepancy';
+
 export interface Book {
   id: string;
   isbn: string;
@@ -27,6 +30,13 @@ export interface Book {
   isFeatured?: boolean;
   tags: string[];
   addedAt: string;
+  price?: number; // Nilai Aset Satuan Buku (Rp)
+  condition?: BookCondition;
+  sourceOfFund?: 'Dana BOS' | 'APBD / Pemerintah' | 'Hibah / Donasi' | 'Yayasan' | 'Pembelian Mandiri';
+  inventoryNumber?: string; // No. Registrasi Inventaris, misal INV/2026/LMN-001
+  stockOpnameStatus?: StockOpnameStatus;
+  lastStockOpnameDate?: string;
+  notes?: string;
 }
 
 export type MemberStatus = 'active' | 'suspended' | 'expired';
@@ -88,6 +98,7 @@ export interface SchoolProfile {
 
 export interface UserSession {
   id: string;
+  uid?: string;
   name: string;
   email: string;
   role: UserRole;
@@ -95,6 +106,7 @@ export interface UserSession {
   title: string;
   isAuthenticated: boolean;
   token?: string;
+  memberCode?: string;
 }
 
 export interface NotificationItem {
@@ -146,12 +158,34 @@ export interface SecurityAuditLog {
   status: 'SUCCESS' | 'WARNING' | 'FAILED';
 }
 
+export interface OfflineQueueItem {
+  id: string;
+  actionType: 
+    | 'CREATE_LOAN' 
+    | 'CREATE_TRANSACTION'
+    | 'RETURN_BOOK' 
+    | 'RENEW_LOAN' 
+    | 'ADD_BOOK' 
+    | 'CREATE_BOOK'
+    | 'UPDATE_BOOK' 
+    | 'ADD_MEMBER' 
+    | 'CREATE_MEMBER'
+    | 'STOCK_OPNAME_VERIFY';
+  payload: any;
+  timestamp: string;
+  status: 'pending' | 'syncing' | 'failed' | 'synced';
+  retryCount: number;
+  errorMessage?: string;
+}
+
 export type ActiveTab = 
   | 'dashboard'
   | 'catalog'
   | 'circulation'
   | 'members'
   | 'analytics'
+  | 'workspace-hub'
+  | 'branches-map'
   | 'messages'
   | 'school-profile'
   | 'settings';

@@ -1,0 +1,228 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and authentication state in the library system",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Auth UID of the user"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User full name or display name",
+          "maxLength": 150
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar or profile picture URL"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "librarian", "student", "teacher", "guest"],
+          "description": "Access level role in the Lumina Library system"
+        },
+        "memberCode": {
+          "type": "string",
+          "description": "Unique student/staff library card member number"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user registered"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last profile update"
+        }
+      },
+      "required": ["userId", "email", "role", "createdAt"]
+    },
+    "BookRecord": {
+      "title": "BookRecord",
+      "description": "Book catalog record in Firestore",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique book identifier"
+        },
+        "title": {
+          "type": "string",
+          "description": "Book title",
+          "maxLength": 300
+        },
+        "author": {
+          "type": "string",
+          "description": "Author name(s)",
+          "maxLength": 200
+        },
+        "isbn": {
+          "type": "string",
+          "description": "Standard ISBN number",
+          "maxLength": 30
+        },
+        "category": {
+          "type": "string",
+          "description": "Book category or genre"
+        },
+        "shelfLocation": {
+          "type": "string",
+          "description": "Physical rack location"
+        },
+        "copiesTotal": {
+          "type": "number",
+          "description": "Total registered copies in catalog"
+        },
+        "copiesAvailable": {
+          "type": "number",
+          "description": "Currently available copies for loan"
+        },
+        "coverImage": {
+          "type": "string",
+          "description": "URL to book cover image"
+        },
+        "description": {
+          "type": "string",
+          "description": "Synopsis or summary of the book",
+          "maxLength": 2000
+        },
+        "rating": {
+          "type": "number",
+          "description": "Average review score"
+        },
+        "isFeatured": {
+          "type": "boolean",
+          "description": "Whether highlighted in hero/spotlight"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Date book was added"
+        }
+      },
+      "required": ["id", "title", "author", "isbn", "category"]
+    },
+    "TransactionRecord": {
+      "title": "TransactionRecord",
+      "description": "Library book loan circulation record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Transaction unique ID"
+        },
+        "trxCode": {
+          "type": "string",
+          "description": "Official circulation reference code (e.g., TRX-2024-0085)",
+          "maxLength": 50
+        },
+        "memberId": {
+          "type": "string",
+          "description": "Member identifier"
+        },
+        "memberName": {
+          "type": "string",
+          "description": "Borrower full name"
+        },
+        "memberCode": {
+          "type": "string",
+          "description": "Borrower membership barcode/code"
+        },
+        "bookId": {
+          "type": "string",
+          "description": "Book item identifier"
+        },
+        "bookTitle": {
+          "type": "string",
+          "description": "Title of borrowed book"
+        },
+        "bookIsbn": {
+          "type": "string",
+          "description": "ISBN of borrowed book"
+        },
+        "borrowDate": {
+          "type": "string",
+          "description": "Borrowing start date (YYYY-MM-DD)"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date for book return (YYYY-MM-DD)"
+        },
+        "returnDate": {
+          "type": "string",
+          "description": "Actual return date if already returned"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["borrowed", "overdue", "returned", "renewed"],
+          "description": "Circulation loan status"
+        },
+        "fineAmount": {
+          "type": "number",
+          "description": "Calculated overdue fine amount in IDR"
+        },
+        "processedBy": {
+          "type": "string",
+          "description": "Librarian or self-kiosk station handling transaction"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Circulation remarks or notes",
+          "maxLength": 500
+        }
+      },
+      "required": ["id", "trxCode", "memberId", "memberName", "bookId", "bookTitle", "borrowDate", "dueDate", "status"]
+    },
+    "UserBookmark": {
+      "title": "UserBookmark",
+      "description": "Saved favorite book for a specific user",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string",
+          "description": "Referenced book ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Book title"
+        },
+        "author": {
+          "type": "string",
+          "description": "Book author"
+        },
+        "coverImage": {
+          "type": "string",
+          "description": "Book cover URL"
+        },
+        "savedAt": {
+          "type": "string",
+          "description": "Timestamp when book was bookmarked"
+        }
+      },
+      "required": ["bookId", "title", "savedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user profiles with role and member information"
+    },
+    "/users/{userId}/bookmarks/{bookmarkId}": {
+      "schema": "UserBookmark",
+      "description": "Stores personal bookmarked books for an authenticated user"
+    },
+    "/books/{bookId}": {
+      "schema": "BookRecord",
+      "description": "Stores global library book records"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "TransactionRecord",
+      "description": "Stores library book circulation transactions"
+    }
+  }
+}

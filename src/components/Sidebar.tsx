@@ -9,9 +9,15 @@ import {
   Building2, 
   Settings, 
   Cloud, 
-  LogOut,
-  Sparkles,
-  QrCode
+  LogOut, 
+  Sparkles, 
+  QrCode, 
+  HardDrive, 
+  MapPin, 
+  Download, 
+  AlertTriangle,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
 import { ActiveTab, UserSession, SyncConfig } from '../types';
 
@@ -19,10 +25,13 @@ interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   user: UserSession;
-  syncConfig: SyncConfig;
+  syncConfig?: SyncConfig;
   onOpenScanner: () => void;
   onLogout: () => void;
   unreadChatCount: number;
+  onExportTransactionsCSV?: () => void;
+  overdueCount?: number;
+  onOpenDueDateWarning?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,21 +42,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenScanner,
   onLogout,
   unreadChatCount,
+  onExportTransactionsCSV,
+  overdueCount = 0,
+  onOpenDueDateWarning,
 }) => {
   const navItems = [
     { id: 'dashboard' as ActiveTab, label: 'Ringkasan', icon: LayoutDashboard },
     { id: 'catalog' as ActiveTab, label: 'Katalog Buku', icon: BookOpen },
-    { id: 'circulation' as ActiveTab, label: 'Sirkulasi Transaksi', icon: ArrowLeftRight },
+    { 
+      id: 'circulation' as ActiveTab, 
+      label: 'Sirkulasi Transaksi', 
+      icon: ArrowLeftRight,
+      badge: overdueCount > 0 ? `${overdueCount} tempo` : undefined,
+      badgeColor: 'bg-rose-500 text-white'
+    },
     { id: 'members' as ActiveTab, label: 'Data Anggota', icon: Users },
-    { id: 'analytics' as ActiveTab, label: 'Rekap & Analitik', icon: BarChart3 },
+    { id: 'analytics' as ActiveTab, label: 'Laporan & Analitik', icon: BarChart3 },
+    { id: 'workspace-hub' as ActiveTab, label: 'Workspace Hub', icon: HardDrive },
+    { id: 'branches-map' as ActiveTab, label: 'Peta Lokasi Layanan', icon: MapPin },
     { 
       id: 'messages' as ActiveTab, 
       label: 'Pesan & Layanan', 
       icon: MessageSquare, 
-      badge: unreadChatCount > 0 ? unreadChatCount : undefined 
+      badge: unreadChatCount > 0 ? `${unreadChatCount}` : undefined,
+      badgeColor: 'bg-emerald-500 text-slate-950'
     },
     { id: 'school-profile' as ActiveTab, label: 'Identitas Sekolah', icon: Building2 },
-    { id: 'settings' as ActiveTab, label: 'Pengaturan & Cloud', icon: Settings },
+    { id: 'settings' as ActiveTab, label: 'Pengaturan & Backup', icon: Settings },
   ];
 
   return (
@@ -71,8 +92,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Quick Scanner Action Button */}
-      <div className="px-4 pt-4 pb-2">
+      {/* Quick Action Buttons */}
+      <div className="px-4 pt-4 pb-2 space-y-2">
         <button
           id="btn-quick-scan"
           onClick={onOpenScanner}
@@ -81,6 +102,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <QrCode className="w-4 h-4" />
           <span>Pindai Barcode / QR</span>
         </button>
+
+        {/* Due Date Warning quick launcher */}
+        {onOpenDueDateWarning && overdueCount > 0 && (
+          <button
+            id="btn-sidebar-due-date-alert"
+            onClick={onOpenDueDateWarning}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+              <span>Peringatan Tempo</span>
+            </div>
+            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-mono">
+              {overdueCount}
+            </span>
+          </button>
+        )}
+
+        {onExportTransactionsCSV && (
+          <button
+            id="btn-sidebar-export-csv"
+            onClick={onExportTransactionsCSV}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 font-medium text-xs border border-emerald-500/30 hover:border-emerald-500/50 transition active:scale-[0.98]"
+            title="Ekspor seluruh data transaksi sirkulasi ke file CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Ekspor ke CSV</span>
+          </button>
+        )}
       </div>
 
       {/* Navigation Links */}
@@ -107,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span>{item.label}</span>
               </div>
               {item.badge && (
-                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-500 text-slate-950">
+                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${item.badgeColor || 'bg-emerald-500 text-slate-950'}`}>
                   {item.badge}
                 </span>
               )}
@@ -130,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <div className="flex items-center justify-between text-[11px] text-slate-400">
           <span>Sinkron Real-time</span>
-          <span className="text-emerald-400 font-mono font-medium">{syncConfig.lastSyncedAt || 'Aktif'}</span>
+          <span className="text-emerald-400 font-mono font-medium">{syncConfig?.lastSyncedAt || 'Aktif'}</span>
         </div>
       </div>
 
