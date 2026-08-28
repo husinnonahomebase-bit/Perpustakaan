@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
   SYNC_CONFIG: 'lumina_lib_sync_v1',
   THEME: 'lumina_lib_theme_v1',
   LANG: 'lumina_lib_lang_v1',
+  APP_ICON: 'lumina_custom_app_icon_v1',
 };
 
 export const INITIAL_SYNC_CONFIG: SyncConfig = {
