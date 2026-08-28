@@ -39,6 +39,7 @@ interface HeaderProps {
   transactionsCount?: number;
   overdueCount?: number;
   onOpenDueDateWarning?: () => void;
+  onOpenInstallPrompt?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -60,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   transactionsCount,
   overdueCount = 0,
   onOpenDueDateWarning,
+  onOpenInstallPrompt,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -158,6 +160,20 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden xl:inline">{syncConfig?.syncStatus === 'syncing' ? 'Menyinkronkan...' : 'Sinkron Cloud'}</span>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
         </button>
+
+        {/* Install to Desktop/Home Screen Button */}
+        {onOpenInstallPrompt && (
+          <button
+            id="btn-header-install-pwa"
+            type="button"
+            onClick={onOpenInstallPrompt}
+            title={language === 'id' ? 'Pasang aplikasi ke Desktop / Layar Utama (PWA)' : 'Install app to Desktop / Home Screen (PWA)'}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition shadow-sm active:scale-[0.98]"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden lg:inline">{language === 'id' ? 'Pasang Aplikasi' : 'Install App'}</span>
+          </button>
+        )}
 
         {/* Language Switcher */}
         <button

@@ -246,6 +246,15 @@ export async function upsertMember(memberData: typeof members.$inferInsert) {
   }
 }
 
+export async function deleteMember(id: string) {
+  try {
+    return await db.delete(members).where(eq(members.id, id));
+  } catch (error) {
+    console.error('deleteMember error:', error);
+    throw new Error('Gagal menghapus anggota dari database.', { cause: error });
+  }
+}
+
 // Transaction Queries
 export async function getAllTransactions() {
   try {

@@ -32,6 +32,7 @@ interface SidebarProps {
   onExportTransactionsCSV?: () => void;
   overdueCount?: number;
   onOpenDueDateWarning?: () => void;
+  onOpenInstallPrompt?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onExportTransactionsCSV,
   overdueCount = 0,
   onOpenDueDateWarning,
+  onOpenInstallPrompt,
 }) => {
   const navItems = [
     { id: 'dashboard' as ActiveTab, label: 'Ringkasan', icon: LayoutDashboard },
@@ -165,6 +167,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
+
+      {/* PWA Install Button */}
+      {onOpenInstallPrompt && (
+        <div className="px-3 pb-2">
+          <button
+            id="btn-sidebar-install-pwa"
+            type="button"
+            onClick={onOpenInstallPrompt}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition active:scale-[0.98] shadow-sm"
+          >
+            <div className="flex items-center gap-2">
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Pasang Aplikasi</span>
+            </div>
+            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+              PWA
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Cloud & Realtime Sync Status Pill */}
       <div className="px-4 py-3 mx-3 mb-3 rounded-xl bg-slate-800/50 border border-slate-700/60 text-xs">

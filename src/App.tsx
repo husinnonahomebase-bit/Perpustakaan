@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { 
   Book, 
   Member, 
+  MemberStatus,
   Transaction, 
   SchoolProfile, 
   UserSession, 
@@ -40,13 +41,17 @@ import { NewTransactionModal } from './components/NewTransactionModal';
 import { NewBookModal } from './components/NewBookModal';
 import { NewMemberModal } from './components/NewMemberModal';
 import { BookDetailModal } from './components/BookDetailModal';
+import { EditBookModal } from './components/EditBookModal';
+import { DeleteBookModal } from './components/DeleteBookModal';
 import { DigitalCardModal } from './components/DigitalCardModal';
 import { DueDateWarningModal } from './components/DueDateWarningModal';
 import { AuthModal } from './components/AuthModal';
+import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 
 export default function App() {
   // Core State
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [isPwaModalOpen, setIsPwaModalOpen] = useState<boolean>(false);
   const [books, setBooks] = useState<Book[]>(() => LibraryStore.getBooks());
   const [members, setMembers] = useState<Member[]>(() => LibraryStore.getMembers());
   const [transactions, setTransactions] = useState<Transaction[]>(() => LibraryStore.getTransactions());
@@ -174,6 +179,8 @@ export default function App() {
   const [isDueDateModalOpen, setIsDueDateModalOpen] = useState(false);
   
   const [selectedBookForDetail, setSelectedBookForDetail] = useState<Book | null>(null);
+  const [selectedBookForEdit, setSelectedBookForEdit] = useState<Book | null>(null);
+  const [selectedBookForDelete, setSelectedBookForDelete] = useState<Book | null>(null);
   const [selectedMemberForCard, setSelectedMemberForCard] = useState<Member | null>(null);
   const [preSelectedBookForLoan, setPreSelectedBookForLoan] = useState<Book | null>(null);
 
@@ -415,8 +422,30 @@ export default function App() {
     setBooks(updated);
     LibraryStore.saveBooks(updated);
 
+    if (selectedBookForDetail?.id === updatedBook.id) {
+      setSelectedBookForDetail(updatedBook);
+    }
+
     // Enqueue offline sync item
     OfflineSyncManager.enqueueAction('UPDATE_BOOK', updatedBook);
+    addNotification('Data Buku Diperbarui', `Buku "${updatedBook.title}" berhasil diperbarui di katalog.`, 'success', 'catalog');
+    addAuditLog(`Pembaruan Koleksi Buku: ${updatedBook.title} (${updatedBook.isbn})`);
+  };
+
+  const handleDeleteBook = (bookId: string) => {
+    const targetBook = books.find(b => b.id === bookId);
+    const updated = books.filter(b => b.id !== bookId);
+    setBooks(updated);
+    LibraryStore.saveBooks(updated);
+
+    if (selectedBookForDetail?.id === bookId) {
+      setSelectedBookForDetail(null);
+    }
+
+    // Enqueue offline sync item
+    OfflineSyncManager.enqueueAction('DELETE_BOOK', { id: bookId, title: targetBook?.title || '' });
+    addNotification('Buku Dihapus', `Buku "${targetBook?.title || 'Koleksi'}" berhasil dihapus dari katalog.`, 'info', 'catalog');
+    addAuditLog(`Hapus Koleksi Buku: ${targetBook?.title || bookId} (${targetBook?.isbn || ''})`);
   };
 
   // Member Handlers
@@ -436,9 +465,112 @@ export default function App() {
 
     // Enqueue offline sync item
     OfflineSyncManager.enqueueAction('CREATE_MEMBER', newMember);
+    fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMember),
+    }).catch(() => {});
 
     addNotification('Anggota Baru Terdaftar', `Kartu digital siap diterbitkan untuk ${newMember.name}.`, 'success', 'members');
     addAuditLog(`Pendaftaran Anggota: ${newMember.name} (${newMember.memberCode})`);
+  };
+
+  const handleUpdateMember = (updatedMember: Member) => {
+    const updated = members.map(m => m.id === updatedMember.id ? updatedMember : m);
+    setMembers(updated);
+    LibraryStore.saveMembers(updated);
+
+    // Enqueue offline sync item
+    OfflineSyncManager.enqueueAction('UPDATE_MEMBER', updatedMember);
+    fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMember),
+    }).catch(() => {});
+
+    addNotification('Data Anggota Diperbarui', `Informasi ${updatedMember.name} (${updatedMember.memberCode}) berhasil diperbarui.`, 'success', 'members');
+    addAuditLog(`Pembaruan Data Anggota: ${updatedMember.name} (${updatedMember.memberCode})`);
+  };
+
+  const handleBulkUpdateMemberStatus = (memberIds: string[], newStatus: MemberStatus) => {
+    if (!memberIds || memberIds.length === 0) return;
+
+    const statusLabel = newStatus === 'active' ? 'Aktif' : newStatus === 'suspended' ? 'Ditangguhkan (Suspended)' : 'Kedaluwarsa (Expired)';
+    const updated = members.map(m => {
+      if (memberIds.includes(m.id)) {
+        const updatedM = { ...m, status: newStatus };
+        // Sync API
+        fetch('/api/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedM),
+        }).catch(() => {});
+        return updatedM;
+      }
+      return m;
+    });
+
+    setMembers(updated);
+    LibraryStore.saveMembers(updated);
+
+    OfflineSyncManager.enqueueAction('BULK_UPDATE_MEMBER_STATUS', { memberIds, newStatus });
+
+    addNotification(
+      'Pembaruan Status Massal', 
+      `Status ${memberIds.length} anggota berhasil diubah ke: ${statusLabel}.`, 
+      'success', 
+      'members'
+    );
+    addAuditLog(`Pembaruan Status Massal (${memberIds.length} anggota) -> ${newStatus}`);
+  };
+
+  const handleDeleteMember = (memberId: string) => {
+    const targetMember = members.find(m => m.id === memberId);
+    const updated = members.filter(m => m.id !== memberId);
+    setMembers(updated);
+    LibraryStore.saveMembers(updated);
+
+    // Enqueue offline sync item
+    OfflineSyncManager.enqueueAction('DELETE_MEMBER', { 
+      id: memberId, 
+      name: targetMember?.name, 
+      memberCode: targetMember?.memberCode 
+    });
+    fetch(`/api/members/${memberId}`, { method: 'DELETE' }).catch(() => {});
+
+    addNotification(
+      'Anggota Dihapus', 
+      `Data anggota ${targetMember?.name || memberId} (${targetMember?.memberCode || ''}) telah dihapus dari sistem.`, 
+      'info', 
+      'members'
+    );
+    addAuditLog(`Penghapusan Anggota: ${targetMember?.name || memberId} (${targetMember?.memberCode || ''})`);
+  };
+
+  const handleBulkImportMembers = (importedMembers: Member[]) => {
+    if (!importedMembers || importedMembers.length === 0) return;
+
+    const updated = [...importedMembers, ...members];
+    setMembers(updated);
+    LibraryStore.saveMembers(updated);
+
+    // Enqueue offline sync item
+    OfflineSyncManager.enqueueAction('BULK_IMPORT_MEMBERS', importedMembers);
+    importedMembers.forEach(m => {
+      fetch('/api/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(m),
+      }).catch(() => {});
+    });
+
+    addNotification(
+      'Impor Anggota Berhasil', 
+      `Sebanyak ${importedMembers.length} data anggota baru berhasil diimpor ke sistem.`, 
+      'success', 
+      'members'
+    );
+    addAuditLog(`Impor Massal Anggota CSV: ${importedMembers.length} anggota baru`);
   };
 
   // Messages & Chat Handlers
@@ -560,6 +692,7 @@ export default function App() {
           onExportTransactionsCSV={handleExportTransactionsCSV}
           overdueCount={overdueCount}
           onOpenDueDateWarning={() => setIsDueDateModalOpen(true)}
+          onOpenInstallPrompt={() => setIsPwaModalOpen(true)}
         />
       </div>
 
@@ -596,6 +729,10 @@ export default function App() {
               onOpenDueDateWarning={() => {
                 setMobileSidebarOpen(false);
                 setIsDueDateModalOpen(true);
+              }}
+              onOpenInstallPrompt={() => {
+                setMobileSidebarOpen(false);
+                setIsPwaModalOpen(true);
               }}
             />
           </div>
@@ -635,6 +772,7 @@ export default function App() {
           transactionsCount={transactions.length}
           overdueCount={overdueCount}
           onOpenDueDateWarning={() => setIsDueDateModalOpen(true)}
+          onOpenInstallPrompt={() => setIsPwaModalOpen(true)}
         />
 
         {/* Offline Status & Pending Sync Queue Banner */}
@@ -700,14 +838,17 @@ export default function App() {
               {activeTab === 'catalog' && (
                 <CatalogView
                   books={books}
+                  transactions={transactions}
                   searchQuery={searchQuery}
+                  school={school}
                   onOpenNewBookModal={() => setIsNewBookModalOpen(true)}
                   onSelectBookDetail={(book) => setSelectedBookForDetail(book)}
                   onOpenLoanModal={(book) => {
                     setPreSelectedBookForLoan(book);
                     setIsNewTransactionModalOpen(true);
                   }}
-                  school={school}
+                  onUpdateBook={handleUpdateBook}
+                  onDeleteBook={handleDeleteBook}
                   onNotify={addNotification}
                 />
               )}
@@ -734,6 +875,10 @@ export default function App() {
                   school={school}
                   onOpenNewMemberModal={() => setIsNewMemberModalOpen(true)}
                   onSelectMemberCard={(member) => setSelectedMemberForCard(member)}
+                  onUpdateMember={handleUpdateMember}
+                  onDeleteMember={handleDeleteMember}
+                  onBulkImportMembers={handleBulkImportMembers}
+                  onBulkUpdateMemberStatus={handleBulkUpdateMemberStatus}
                   onNotify={addNotification}
                 />
               )}
@@ -856,11 +1001,30 @@ export default function App() {
           setPreSelectedBookForLoan(book);
           setIsNewTransactionModalOpen(true);
         }}
+        onEditBook={(book) => setSelectedBookForEdit(book)}
+        onDeleteBook={(book) => setSelectedBookForDelete(book)}
+      />
+
+      <EditBookModal
+        isOpen={Boolean(selectedBookForEdit)}
+        book={selectedBookForEdit}
+        onClose={() => setSelectedBookForEdit(null)}
+        onSave={handleUpdateBook}
+      />
+
+      <DeleteBookModal
+        isOpen={Boolean(selectedBookForDelete)}
+        book={selectedBookForDelete}
+        transactions={transactions}
+        onClose={() => setSelectedBookForDelete(null)}
+        onConfirmDelete={handleDeleteBook}
       />
 
       <DigitalCardModal
         member={selectedMemberForCard}
         school={school}
+        transactions={transactions}
+        books={books}
         onClose={() => setSelectedMemberForCard(null)}
       />
 
@@ -882,6 +1046,13 @@ export default function App() {
           addNotification('Otentikasi Berhasil', `Selamat datang kembali, ${loggedUser.name}!`, 'success');
           addAuditLog(`Login Pengguna: ${loggedUser.email} (${loggedUser.role})`);
         }}
+      />
+
+      {/* PWA Custom Install Prompt & Step-by-Step Guide Modal */}
+      <PwaInstallPrompt
+        appName={school.name || 'Lumina Library PRO'}
+        isModalOpenExternal={isPwaModalOpen}
+        setIsModalOpenExternal={setIsPwaModalOpen}
       />
     </div>
   );

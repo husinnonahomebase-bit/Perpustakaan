@@ -14,6 +14,19 @@ export const INITIAL_SCHOOL_PROFILE: SchoolProfile = {
   logoUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=200&q=80',
   motto: 'Membaca Membuka Cakrawala, Literasi Meneguhkan Bangsa',
   libraryCode: 'LMN-LIB-01',
+  kopSurat: {
+    enabled: true,
+    governingBody: 'PEMERINTAH PROVINSI DKI JAKARTA\nDINAS PENDIDIKAN',
+    institutionName: 'SMA NEGERI LUMINA BANGSA',
+    unitName: 'UNIT PELAKSANA TEKNIS (UPT) PERPUSTAKAAN DIGITAL LUMINA',
+    addressLine: 'Jl. Merdeka Cendekia No. 45, Kebayoran Baru, Jakarta Selatan',
+    contactLine: 'Telp: (021) 789-2041 | Email: perpus@sman-luminabangsa.sch.id | Website: https://perpus.sman-luminabangsa.sch.id',
+    postalCode: '12160',
+    letterCodePrefix: '421.3/PERPUS-LMN/2026',
+    borderStyle: 'double',
+    logoLeftUrl: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=200&q=80',
+    logoRightUrl: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=200&q=80'
+  }
 };
 
 export const INITIAL_USER: UserSession = {

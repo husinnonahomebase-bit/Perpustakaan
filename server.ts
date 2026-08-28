@@ -1,12 +1,14 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { GoogleGenAI, Type } from '@google/genai';
 import { 
   getAllBooks, 
   upsertBook, 
   deleteBook, 
   getAllMembers, 
   upsertMember, 
+  deleteMember,
   getAllTransactions, 
   upsertTransaction, 
   getAllBranches, 
@@ -15,6 +17,21 @@ import {
   seedDatabaseIfEmpty 
 } from './src/db/queries.ts';
 import { optionalAuth, AuthRequest } from './src/middleware/auth.ts';
+
+let geminiClient: GoogleGenAI | null = null;
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return geminiClient;
+}
 
 async function startServer() {
   const app = express();
@@ -63,6 +80,84 @@ async function startServer() {
     }
   });
 
+  // Gemini Smart Book Analysis Endpoint
+  app.post('/api/gemini/analyze-book', async (req, res) => {
+    try {
+      const { title, isbn, author, category, description } = req.body;
+      if (!title && !isbn) {
+        return res.status(400).json({ error: 'Judul atau ISBN buku harus disertakan untuk analisis.' });
+      }
+
+      const ai = getGeminiClient();
+      const prompt = `Lakukan analisis literatur dan kurasi perpustakaan sekolah yang mendalam dan komprehensif untuk buku berikut:
+Judul Buku: "${title || '-'}"
+Nomor ISBN: "${isbn || '-'}"
+Pengarang/Penulis: "${author || '-'}"
+Kategori Awal: "${category || '-'}"
+Deskripsi Singkat: "${description || '-'}"
+
+Hasilkan data kurasi dalam format JSON terstruktur dengan bahasa Indonesia yang formal, edukatif, dan menarik untuk pustakawan serta siswa sekolah.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.7-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: 'Anda adalah seorang Kurator Pustaka Sekolah dan Pakar Sastra Perpustakaan Nasional Indonesia. Tugas Anda adalah memberikan analisis kurasi buku yang presisi, rekomendasi usia pembaca, analisis genre, nilai edukasi, dan ringkasan komprehensif.',
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              summary: {
+                type: Type.STRING,
+                description: 'Ringkasan esensial isi buku (2-3 paragraf deskriptif dalam Bahasa Indonesia)'
+              },
+              targetAge: {
+                type: Type.STRING,
+                description: 'Saran rentang usia pembaca (contoh: "12-15 Tahun (SMP)", "15-18 Tahun (SMA/SMK)", "Semua Umur")'
+              },
+              genreCategory: {
+                type: Type.STRING,
+                description: 'Kategori genre sastra/ilmiah spesifik buku (contoh: "Fiksi Ilmiah & Distopia", "Sains Populer & Astronomi")'
+              },
+              keyThemes: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: '3 sampai 5 tema sentral atau nilai moral dari buku tersebut'
+              },
+              contentRating: {
+                type: Type.STRING,
+                description: 'Rating konten perpustakaan (contoh: "SU (Semua Umur)", "13+ (Bimbingan Orang Tua/Guru)", "17+")'
+              },
+              educationalValue: {
+                type: Type.STRING,
+                description: 'Alasan nilai edukatif dan manfaat membaca buku ini bagi peserta didik'
+              },
+              shelfRecommendation: {
+                type: Type.STRING,
+                description: 'Saran klasifikasi DDC atau penempatan rak buku yang ideal di perpustakaan'
+              }
+            },
+            required: ['summary', 'targetAge', 'genreCategory', 'keyThemes', 'contentRating', 'educationalValue', 'shelfRecommendation']
+          }
+        }
+      });
+
+      const responseText = response.text || '{}';
+      const parsedData = JSON.parse(responseText);
+      res.json(parsedData);
+    } catch (error: any) {
+      console.error('Error in POST /api/gemini/analyze-book:', error);
+      res.status(500).json({ 
+        error: error.message || 'Gagal menganalisis buku dengan Gemini AI.',
+        fallbackSummary: 'Buku ini merupakan referensi literasi penting di perpustakaan sekolah.',
+        fallbackTargetAge: '12-18 Tahun (Remaja & Dewasa)',
+        fallbackGenre: 'Literasi Umum & Pengetahuan',
+        fallbackKeyThemes: ['Edukasi', 'Pengembangan Diri', 'Literasi Membaca'],
+        fallbackEducationalValue: 'Meningkatkan minat baca dan wawasan pengetahuan umum siswa.'
+      });
+    }
+  });
+
   // Members Endpoints
   app.get('/api/members', async (req, res) => {
     try {
@@ -82,6 +177,17 @@ async function startServer() {
     } catch (error: any) {
       console.error('Error in POST /api/members:', error);
       res.status(500).json({ error: error.message || 'Failed to save member' });
+    }
+  });
+
+  app.delete('/api/members/:id', optionalAuth, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      await deleteMember(id);
+      res.json({ success: true, id });
+    } catch (error: any) {
+      console.error('Error in DELETE /api/members/:id:', error);
+      res.status(500).json({ error: error.message || 'Failed to delete member' });
     }
   });
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="lumina-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#020617" />
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#lumina-grad)" opacity="0.15" />
+  <path d="M128 140c0-15.5 12.5-28 28-28h180c22 0 40 18 40 40v220c0 15.5-12.5 28-28 28H156c-15.5 0-28-12.5-28-28V140z" fill="none" stroke="#10b981" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 180h140M180 240h140M180 300h90" stroke="#34d399" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="360" cy="340" r="44" fill="#10b981" />
+  <path d="M344 340l12 12 24-24" fill="none" stroke="#020617" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

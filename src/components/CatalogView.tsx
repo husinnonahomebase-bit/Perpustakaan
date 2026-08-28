@@ -14,17 +14,29 @@ import {
   Sparkles,
   MapPin,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Eye
 } from 'lucide-react';
-import { Book, BookCategory, SchoolProfile } from '../types';
+import { Book, BookCategory, SchoolProfile, Transaction } from '../types';
 import { exportCatalogToPDF, exportToCSV } from '../utils/exportUtils';
+import { EditBookModal } from './EditBookModal';
+import { DeleteBookModal } from './DeleteBookModal';
 
 interface CatalogViewProps {
   books: Book[];
   school: SchoolProfile;
+  transactions?: Transaction[];
+  searchQuery?: string;
   onOpenNewBookModal: () => void;
-  onSelectBook: (book: Book) => void;
-  onOpenNewLoanModalForBook: (book: Book) => void;
+  onSelectBook?: (book: Book) => void;
+  onSelectBookDetail?: (book: Book) => void;
+  onOpenNewLoanModalForBook?: (book: Book) => void;
+  onOpenLoanModal?: (book: Book) => void;
+  onUpdateBook?: (updatedBook: Book) => void;
+  onDeleteBook?: (bookId: string) => void;
+  onNotify?: (title: string, message: string, type?: 'info' | 'warning' | 'success' | 'alert') => void;
 }
 
 const CATEGORIES: BookCategory[] = [
@@ -41,15 +53,36 @@ const CATEGORIES: BookCategory[] = [
 export const CatalogView: React.FC<CatalogViewProps> = ({
   books,
   school,
+  transactions = [],
+  searchQuery: initialSearchQuery = '',
   onOpenNewBookModal,
   onSelectBook,
+  onSelectBookDetail,
   onOpenNewLoanModalForBook,
+  onOpenLoanModal,
+  onUpdateBook,
+  onDeleteBook,
+  onNotify,
 }) => {
+  const handleSelectBook = (book: Book) => {
+    if (onSelectBook) onSelectBook(book);
+    else if (onSelectBookDetail) onSelectBookDetail(book);
+  };
+
+  const handleOpenLoan = (book: Book) => {
+    if (onOpenNewLoanModalForBook) onOpenNewLoanModalForBook(book);
+    else if (onOpenLoanModal) onOpenLoanModal(book);
+  };
+
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua Kategori');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'out'>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery);
   const [sortBy, setSortBy] = useState<'newest' | 'title' | 'rating' | 'stock'>('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Modals for editing and deleting books
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [deletingBook, setDeletingBook] = useState<Book | null>(null);
 
   // Filtered & Sorted Books
   const filteredBooks = useMemo(() => {
@@ -301,7 +334,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div>
                     <h3 
-                      onClick={() => onSelectBook(book)}
+                      onClick={() => handleSelectBook(book)}
                       className="font-bold text-sm text-white line-clamp-1 group-hover:text-emerald-400 transition cursor-pointer"
                     >
                       {book.title}
@@ -329,19 +362,47 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                   </div>
 
                   {/* Card Bottom Actions */}
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
                     <button
-                      onClick={() => onSelectBook(book)}
-                      className="flex-1 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-200 border border-slate-700 transition"
+                      type="button"
+                      id={`btn-detail-book-${book.id}`}
+                      onClick={() => handleSelectBook(book)}
+                      className="flex-1 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-200 border border-slate-700 transition active:scale-95"
                     >
                       Detail
                     </button>
                     <button
-                      onClick={() => onOpenNewLoanModalForBook(book)}
+                      type="button"
+                      id={`btn-loan-book-${book.id}`}
+                      onClick={() => handleOpenLoan(book)}
                       disabled={isOutOfStock}
-                      className="flex-1 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {isOutOfStock ? 'Dipinjam Semua' : 'Pinjamkan'}
+                      {isOutOfStock ? 'Dipinjam' : 'Pinjam'}
+                    </button>
+                    <button
+                      type="button"
+                      id={`btn-edit-book-${book.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingBook(book);
+                      }}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 transition active:scale-95"
+                      title="Edit Data Buku"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      id={`btn-delete-book-${book.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeletingBook(book);
+                      }}
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/40 transition active:scale-95"
+                      title="Hapus Data Buku"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -371,11 +432,14 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                       <img
                         src={book.coverImage}
                         alt={book.title}
-                        className="w-10 h-14 object-cover rounded-lg ring-1 ring-slate-700"
+                        className="w-10 h-14 object-cover rounded-lg ring-1 ring-slate-700 shrink-0 bg-slate-950"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80';
+                        }}
                       />
                       <div>
                         <p 
-                          onClick={() => onSelectBook(book)}
+                          onClick={() => handleSelectBook(book)}
                           className="font-semibold text-xs text-white hover:text-emerald-400 cursor-pointer"
                         >
                           {book.title}
@@ -397,19 +461,41 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
                     </span>
                   </td>
                   <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
-                        onClick={() => onSelectBook(book)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                        type="button"
+                        id={`btn-detail-book-list-${book.id}`}
+                        onClick={() => handleSelectBook(book)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
                       >
                         Detail
                       </button>
                       <button
-                        onClick={() => onOpenNewLoanModalForBook(book)}
+                        type="button"
+                        id={`btn-loan-book-list-${book.id}`}
+                        onClick={() => handleOpenLoan(book)}
                         disabled={book.copiesAvailable === 0}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 disabled:opacity-40"
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 disabled:opacity-40 transition"
                       >
                         Pinjam
+                      </button>
+                      <button
+                        type="button"
+                        id={`btn-edit-book-list-${book.id}`}
+                        onClick={() => setEditingBook(book)}
+                        className="p-1 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 transition"
+                        title="Edit Data Buku"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        id={`btn-delete-book-list-${book.id}`}
+                        onClick={() => setDeletingBook(book)}
+                        className="p-1 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/40 transition"
+                        title="Hapus Data Buku"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -419,6 +505,37 @@ export const CatalogView: React.FC<CatalogViewProps> = ({
           </table>
         </div>
       )}
+
+      {/* Edit Book Modal */}
+      <EditBookModal
+        isOpen={Boolean(editingBook)}
+        book={editingBook}
+        onClose={() => setEditingBook(null)}
+        onSave={(updated) => {
+          if (onUpdateBook) {
+            onUpdateBook(updated);
+          }
+          if (onNotify) {
+            onNotify('Data Buku Diperbarui', `Buku "${updated.title}" berhasil diperbarui.`, 'success');
+          }
+        }}
+      />
+
+      {/* Delete Book Modal */}
+      <DeleteBookModal
+        isOpen={Boolean(deletingBook)}
+        book={deletingBook}
+        transactions={transactions}
+        onClose={() => setDeletingBook(null)}
+        onConfirmDelete={(bookId) => {
+          if (onDeleteBook) {
+            onDeleteBook(bookId);
+          }
+          if (onNotify && deletingBook) {
+            onNotify('Buku Dihapus', `Buku "${deletingBook.title}" telah dihapus dari katalog.`, 'info');
+          }
+        }}
+      />
     </div>
   );
 };

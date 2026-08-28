@@ -80,6 +80,36 @@ export interface Transaction {
   processedBy: string;
 }
 
+export interface KopSuratConfig {
+  enabled: boolean;
+  governingBody: string; // misal: "PEMERINTAH PROVINSI JAWA BARAT / DINAS PENDIDIKAN"
+  institutionName: string; // misal: "SMA NEGERI 1 TELADAN NUSANTARA"
+  unitName: string; // misal: "UPT PERPUSTAKAAN DIGITAL LUMINA"
+  addressLine: string; // misal: "Jl. Pendidikan No. 45, Kompleks Lembah Ilmu"
+  contactLine: string; // misal: "Telp: (021) 7890-1234 | Email: perpus@sman1teladan.sch.id"
+  postalCode: string; // "12345"
+  letterCodePrefix: string; // "005/DISDIK/PERPUS/2026"
+  logoLeftUrl?: string;
+  logoRightUrl?: string;
+  borderStyle: 'double' | 'solid' | 'emerald';
+}
+
+export interface BookAIAnalysis {
+  summary: string;
+  targetAge?: string;
+  ageRecommendation?: string;
+  genreCategory?: string;
+  genres?: string[];
+  keyThemes?: string[];
+  coreThemes?: string[];
+  educationalValue?: string;
+  educationalValues?: string[];
+  contentRating?: string;
+  shelfRecommendation?: string;
+  discussionQuestions?: string[];
+  readingLevel?: 'Mudah' | 'Menengah' | 'Tinggi / Akademik';
+}
+
 export interface SchoolProfile {
   schoolName: string;
   npsn: string;
@@ -94,6 +124,7 @@ export interface SchoolProfile {
   logoUrl: string;
   motto: string;
   libraryCode: string;
+  kopSurat?: KopSuratConfig;
 }
 
 export interface UserSession {
@@ -153,6 +184,10 @@ export interface SecurityAuditLog {
   timestamp: string;
   action: string;
   user: string;
+  userName?: string;
+  role?: string;
+  resource?: string;
+  details?: string;
   ipAddress: string;
   device: string;
   status: 'SUCCESS' | 'WARNING' | 'FAILED';
@@ -168,8 +203,13 @@ export interface OfflineQueueItem {
     | 'ADD_BOOK' 
     | 'CREATE_BOOK'
     | 'UPDATE_BOOK' 
+    | 'DELETE_BOOK'
     | 'ADD_MEMBER' 
     | 'CREATE_MEMBER'
+    | 'UPDATE_MEMBER'
+    | 'DELETE_MEMBER'
+    | 'BULK_IMPORT_MEMBERS'
+    | 'BULK_UPDATE_MEMBER_STATUS'
     | 'STOCK_OPNAME_VERIFY';
   payload: any;
   timestamp: string;

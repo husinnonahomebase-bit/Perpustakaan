@@ -27,6 +27,7 @@ import { SyncConfig, SecurityAuditLog, UserSession } from '../types';
 import { LibraryStore } from '../utils/storage';
 import { AutoBackupManager, AutoBackupSettings, BackupSnapshot } from '../utils/autoBackup';
 import { OfflineSyncManager } from '../utils/offlineSync';
+import { AuditTrailTimeline } from './AuditTrailTimeline';
 
 interface SettingsViewProps {
   syncConfig?: SyncConfig;
@@ -464,47 +465,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* Security Audit Logs */}
-          <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white">Log Aktivitas Keamanan (Audit Trail)</h3>
-                  <p className="text-xs text-slate-400">Riwayat otentikasi login dan aktivitas enkripsi data</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
-                    <th className="pb-2 font-semibold">Waktu</th>
-                    <th className="pb-2 font-semibold">Aksi & Deskripsi</th>
-                    <th className="pb-2 font-semibold">Pengguna</th>
-                    <th className="pb-2 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono text-[11px]">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-800/40">
-                      <td className="py-2.5 text-slate-400">{log.timestamp}</td>
-                      <td className="py-2.5 text-slate-200">{log.action}</td>
-                      <td className="py-2.5 text-slate-400">{log.user}</td>
-                      <td className="py-2.5">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">
-                          {log.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/* Security Audit Trail Timeline */}
+          <AuditTrailTimeline logs={auditLogs} />
         </div>
 
         {/* Right 1 Col: Backup, Cloud status, and Reset */}

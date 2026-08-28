@@ -305,8 +305,20 @@ export class OfflineSyncManager {
         return `Penambahan Koleksi: ${item.payload?.title || 'Buku Baru'}`;
       case 'UPDATE_BOOK':
         return `Update Data Buku: ${item.payload?.title || 'Buku'}`;
+      case 'DELETE_BOOK':
+        return `Penghapusan Buku: ${item.payload?.title || 'Buku'} (${item.payload?.id || ''})`;
       case 'ADD_MEMBER':
         return `Pendaftaran Anggota: ${item.payload?.name || 'Anggota Baru'}`;
+      case 'CREATE_MEMBER':
+        return `Pendaftaran Anggota: ${item.payload?.name || 'Anggota Baru'}`;
+      case 'UPDATE_MEMBER':
+        return `Pembaruan Anggota: ${item.payload?.name || 'Anggota'} (${item.payload?.memberCode || ''})`;
+      case 'DELETE_MEMBER':
+        return `Penghapusan Anggota: ${item.payload?.name || 'Anggota'} (#${item.payload?.id || ''})`;
+      case 'BULK_IMPORT_MEMBERS':
+        return `Impor Massal Anggota: ${Array.isArray(item.payload) ? item.payload.length : 'Banyak'} data`;
+      case 'BULK_UPDATE_MEMBER_STATUS':
+        return `Pembaruan Status Massal: ${item.payload?.memberIds?.length || ''} anggota -> ${item.payload?.newStatus || ''}`;
       case 'STOCK_OPNAME_VERIFY':
         return `Verifikasi Stock Opname: ${item.payload?.bookTitle || 'Buku'}`;
       default:

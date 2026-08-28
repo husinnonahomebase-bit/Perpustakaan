@@ -13,7 +13,8 @@ import {
   Download, 
   MessageSquare,
   Sparkles,
-  Phone
+  Phone,
+  Printer
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Transaction, SchoolProfile } from '../types';
@@ -26,6 +27,7 @@ interface CirculationViewProps {
   onReturnBook: (trxId: string) => void;
   onRenewLoan: (trxId: string, daysToAdd: number) => void;
   onSendReminder: (trx: Transaction) => void;
+  onPrintReceipt?: (trx: Transaction) => void;
 }
 
 export const CirculationView: React.FC<CirculationViewProps> = ({
@@ -35,6 +37,7 @@ export const CirculationView: React.FC<CirculationViewProps> = ({
   onReturnBook,
   onRenewLoan,
   onSendReminder,
+  onPrintReceipt,
 }) => {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [statusFilter, setStatusFilter] = useState<'all' | 'borrowed' | 'overdue'>('all');
@@ -313,39 +316,52 @@ export const CirculationView: React.FC<CirculationViewProps> = ({
                       </td>
 
                       <td className="p-4 align-top text-right">
-                        {trx.status !== 'returned' ? (
-                          <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {onPrintReceipt && (
                             <button
-                              id={`btn-renew-${trx.id}`}
-                              onClick={() => onRenewLoan(trx.id, 7)}
-                              title="Perpanjang 7 Hari"
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition"
+                              id={`btn-print-receipt-${trx.id}`}
+                              onClick={() => onPrintReceipt(trx)}
+                              title="Cetak Slip Tanda Terima"
+                              className="p-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 transition"
                             >
-                              +7 Hari
+                              <Printer className="w-3.5 h-3.5" />
                             </button>
+                          )}
 
-                            <button
-                              id={`btn-remind-${trx.id}`}
-                              onClick={() => onSendReminder(trx)}
-                              title="Kirim Notifikasi / WhatsApp"
-                              className="p-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 border border-slate-700 transition"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                            </button>
+                          {trx.status !== 'returned' ? (
+                            <>
+                              <button
+                                id={`btn-renew-${trx.id}`}
+                                onClick={() => onRenewLoan(trx.id, 7)}
+                                title="Perpanjang 7 Hari"
+                                className="px-2 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 transition"
+                              >
+                                +7 Hari
+                              </button>
 
-                            <button
-                              id={`btn-complete-return-${trx.id}`}
-                              onClick={() => handleReturnWithConfetti(trx.id)}
-                              className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition"
-                            >
-                              Kembalikan
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500 font-mono">
-                            TRX Selesai
-                          </span>
-                        )}
+                              <button
+                                id={`btn-remind-${trx.id}`}
+                                onClick={() => onSendReminder(trx)}
+                                title="Kirim Notifikasi / WhatsApp"
+                                className="p-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-emerald-500/20 text-emerald-400 border border-slate-700 transition"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                id={`btn-complete-return-${trx.id}`}
+                                onClick={() => handleReturnWithConfetti(trx.id)}
+                                className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition"
+                              >
+                                Kembalikan
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-500 font-mono px-2 py-1">
+                              TRX Selesai
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

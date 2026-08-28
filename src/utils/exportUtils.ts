@@ -110,45 +110,377 @@ export function exportMonthlyReportToCSV(
 
 /**
  * Helper to render standard School Letterhead (Kop Surat Resmi) in PDF
+ * Dynamically fetches County Logo (Left) and School Logo (Right) from the current SchoolProfile
  */
-function renderSchoolHeader(doc: jsPDF, school: SchoolProfile, title: string, subtitle?: string) {
+export function renderSchoolHeader(doc: jsPDF, school: SchoolProfile, title: string, subtitle?: string) {
   const pageWidth = doc.internal.pageSize.getWidth();
+  const kop = school.kopSurat;
 
-  // Institution Name
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(30, 41, 59); // Slate-800
-  doc.text(school.schoolName.toUpperCase(), pageWidth / 2, 16, { align: 'center' });
+  let currentY = 14;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`NPSN: ${school.npsn} | Kode Perpustakaan: ${school.libraryCode}`, pageWidth / 2, 21, { align: 'center' });
-  doc.text(`${school.address}, ${school.city}, ${school.province}`, pageWidth / 2, 26, { align: 'center' });
-  doc.text(`Website: ${school.website} | Email: ${school.email} | Telp: ${school.phone}`, pageWidth / 2, 31, { align: 'center' });
+  // Resolve County/Kabupaten Logo (Left) and School Logo (Right)
+  const leftLogo = kop?.logoLeftUrl || (kop?.enabled ? '' : school.logoUrl);
+  const rightLogo = kop?.logoRightUrl || school.logoUrl;
 
-  // Double Decorative Line
-  doc.setDrawColor(16, 185, 129); // Emerald
-  doc.setLineWidth(0.8);
-  doc.line(14, 35, pageWidth - 14, 35);
-  doc.setDrawColor(203, 213, 225); // Slate-300
-  doc.setLineWidth(0.3);
-  doc.line(14, 36.5, pageWidth - 14, 36.5);
+  if (kop && kop.enabled) {
+    // 1. Draw Left County/Kabupaten Logo if present
+    if (leftLogo && (leftLogo.startsWith('data:image/') || leftLogo.startsWith('http'))) {
+      try {
+        const format = leftLogo.startsWith('data:image/jpeg') || leftLogo.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
+        doc.addImage(leftLogo, format, 14, 10, 18, 18);
+      } catch (e) {
+        console.warn('PDF Header Left County Logo could not be rendered', e);
+      }
+    }
+
+    // 2. Draw Right School Logo if present
+    if (rightLogo && (rightLogo.startsWith('data:image/') || rightLogo.startsWith('http'))) {
+      try {
+        const format = rightLogo.startsWith('data:image/jpeg') || rightLogo.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
+        doc.addImage(rightLogo, format, pageWidth - 32, 10, 18, 18);
+      } catch (e) {
+        console.warn('PDF Header Right School Logo could not be rendered', e);
+      }
+    }
+
+    // Custom Official Indonesian Letterhead (Kop Surat)
+    if (kop.governingBody) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(30, 41, 59);
+      const lines = kop.governingBody.split('\n');
+      lines.forEach((line) => {
+        doc.text(line.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+        currentY += 4.5;
+      });
+    }
+
+    // Institution Name
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text((kop.institutionName || school.schoolName).toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+    currentY += 4.5;
+
+    // Unit / Library Name
+    if (kop.unitName) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(16, 185, 129); // Emerald
+      doc.text(kop.unitName.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+      currentY += 4;
+    }
+
+    // Address & Contact Lines
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(kop.addressLine || `${school.address}, ${school.city}`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 3.5;
+    doc.text(kop.contactLine || `Telp: ${school.phone} | Email: ${school.email}`, pageWidth / 2, currentY, { align: 'center' });
+    currentY += 3;
+
+    // Boundary Line
+    if (kop.borderStyle === 'double') {
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.8);
+      doc.line(14, currentY, pageWidth - 14, currentY);
+      doc.setLineWidth(0.25);
+      doc.line(14, currentY + 1.2, pageWidth - 14, currentY + 1.2);
+      currentY += 5;
+    } else if (kop.borderStyle === 'emerald') {
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.9);
+      doc.line(14, currentY, pageWidth - 14, currentY);
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.2);
+      doc.line(14, currentY + 1.2, pageWidth - 14, currentY + 1.2);
+      currentY += 5;
+    } else {
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(1.0);
+      doc.line(14, currentY, pageWidth - 14, currentY);
+      currentY += 5;
+    }
+  } else {
+    // Default Header with Logos
+    if (school.logoUrl && (school.logoUrl.startsWith('data:image/') || school.logoUrl.startsWith('http'))) {
+      try {
+        const format = school.logoUrl.startsWith('data:image/jpeg') || school.logoUrl.startsWith('data:image/jpg') ? 'JPEG' : 'PNG';
+        doc.addImage(school.logoUrl, format, 14, 14, 16, 16);
+      } catch (e) {
+        console.warn('PDF Header School Logo could not be rendered', e);
+      }
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(30, 41, 59); // Slate-800
+    doc.text(school.schoolName.toUpperCase(), pageWidth / 2, 16, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`NPSN: ${school.npsn} | Kode Perpustakaan: ${school.libraryCode}`, pageWidth / 2, 21, { align: 'center' });
+    doc.text(`${school.address}, ${school.city}, ${school.province}`, pageWidth / 2, 26, { align: 'center' });
+    doc.text(`Website: ${school.website} | Email: ${school.email} | Telp: ${school.phone}`, pageWidth / 2, 31, { align: 'center' });
+
+    // Double Decorative Line
+    doc.setDrawColor(16, 185, 129); // Emerald
+    doc.setLineWidth(0.8);
+    doc.line(14, 35, pageWidth - 14, 35);
+    doc.setDrawColor(203, 213, 225); // Slate-300
+    doc.setLineWidth(0.3);
+    doc.line(14, 36.5, pageWidth - 14, 36.5);
+    currentY = 43;
+  }
 
   // Document Title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text(title, pageWidth / 2, 44, { align: 'center' });
+  doc.text(title, pageWidth / 2, currentY, { align: 'center' });
 
   if (subtitle) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
-    doc.text(subtitle, pageWidth / 2, 49, { align: 'center' });
+    doc.text(subtitle, pageWidth / 2, currentY + 5, { align: 'center' });
+    return currentY + 12;
   }
 
-  return 54;
+  return currentY + 8;
+}
+
+/**
+ * UJI CETAK PRATINJAU DOKUMEN KOP SURAT RESMI (PDF TEST EXPORT)
+ */
+export function exportSampleLetterheadPDF(school: SchoolProfile) {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const title = 'SURAT KETERANGAN RESMI PERPUSTAKAAN (CONTOH FORMAT KOP SURAT)';
+  const subtitle = `Nomor: ${school.libraryCode}/SK-SAMPLE/${new Date().getFullYear()} | Tanggal: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+  const currentY = renderSchoolHeader(doc, school, title, subtitle);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(30, 41, 59);
+
+  doc.text(
+    `Dokumen ini merupakan contoh resmi penerapan Kop Surat, Logo Kabupaten/Pemerintah Daerah (Sisi Kiri), dan Logo Sekolah/Instansi (Sisi Kanan) yang digenerate langsung oleh Lumina SIS Library Cloud Engine.`,
+    14,
+    currentY + 5,
+    { maxWidth: pageWidth - 28, lineHeightFactor: 1.4 }
+  );
+
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, currentY + 22, pageWidth - 28, 38, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, currentY + 22, pageWidth - 28, 38, 2, 2, 'S');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text('STATUS KONFIGURASI LOGO & IDENTITAS:', 20, currentY + 29);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`• Logo Kabupaten (Kiri)  : ${school.kopSurat?.logoLeftUrl ? 'Terpasang (Valid PNG/JPG Base64)' : 'Menggunakan Lambang Default'}`, 20, currentY + 36);
+  doc.text(`• Logo Sekolah (Kanan)   : ${school.kopSurat?.logoRightUrl || school.logoUrl ? 'Terpasang (Valid PNG/JPG Base64)' : 'Menggunakan Logo Utama'}`, 20, currentY + 42);
+  doc.text(`• Instansi & Sekolah     : ${school.kopSurat?.institutionName || school.schoolName}`, 20, currentY + 48);
+  doc.text(`• Kode Unit Perpustakaan : ${school.libraryCode} | NPSN: ${school.npsn}`, 20, currentY + 54);
+
+  // Signatures
+  const footerY = 230;
+  const nowStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+
+  doc.text('Kepala Perpustakaan,', 25, footerY);
+  doc.setFont('helvetica', 'bold');
+  doc.text(school.librarianName, 25, footerY + 24);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text('NIP. 19850412 200902 2 004', 25, footerY + 28);
+
+  doc.setFontSize(8.5);
+  doc.text(`${school.city}, ${nowStr}`, pageWidth - 75, footerY);
+  doc.text('Mengesahkan, Kepala Sekolah', pageWidth - 75, footerY + 5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(school.principalName, pageWidth - 75, footerY + 24);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text('NIP. 19710318 199703 1 002', pageWidth - 75, footerY + 28);
+
+  doc.save(`Pratinjau_KopSurat_${school.schoolName.replace(/\s+/g, '_')}.pdf`);
+  return true;
+}
+
+/**
+ * CETAK SLIP TANDA TERIMA TRANSAKSI (RECEIPT SLIP A6 / THERMAL)
+ */
+export function exportTransactionReceiptToPDF(
+  trx: Transaction,
+  school: SchoolProfile
+) {
+  // A6 format: 105mm x 148mm
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'mm',
+    format: [105, 175] // Extended A6 height for comprehensive receipt
+  });
+
+  const pageWidth = 105;
+
+  // Header Box
+  doc.setFillColor(248, 250, 252);
+  doc.rect(0, 0, pageWidth, 28, 'F');
+  
+  // Institution
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text(school.schoolName.toUpperCase(), pageWidth / 2, 8, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('UPT PERPUSTAKAAN DIGITAL LUMINA', pageWidth / 2, 12, { align: 'center' });
+  doc.text(`${school.address}, ${school.city}`, pageWidth / 2, 16, { align: 'center' });
+  doc.text(`Telp: ${school.phone} | NPSN: ${school.npsn}`, pageWidth / 2, 20, { align: 'center' });
+
+  // Divider
+  doc.setDrawColor(16, 185, 129);
+  doc.setLineWidth(0.6);
+  doc.line(6, 24, pageWidth - 6, 24);
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineWidth(0.2);
+  doc.line(6, 25.2, pageWidth - 6, 25.2);
+
+  // Title Slip
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('BUKTI RESMI PEMINJAMAN PUSTAKA', pageWidth / 2, 31, { align: 'center' });
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(16, 185, 129);
+  doc.text(`KODE: ${trx.trxCode}`, pageWidth / 2, 36, { align: 'center' });
+
+  // Dashed separator
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(6, 40, pageWidth - 6, 40);
+  doc.setLineDashPattern([], 0);
+
+  // Borrower Info Section
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text('IDENTITAS PEMUSTAKA', 8, 45);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Nama Lengkap', 8, 50);
+  doc.text(`: ${trx.memberName}`, 34, 50);
+
+  doc.text('Nomor Anggota', 8, 54.5);
+  doc.text(`: ${trx.memberCode}`, 34, 54.5);
+
+  doc.text('No. Kontak/HP', 8, 59);
+  doc.text(`: ${trx.memberPhone || '-'}`, 34, 59);
+
+  // Dashed separator
+  doc.setDrawColor(203, 213, 225);
+  doc.setLineDashPattern([1.5, 1.5], 0);
+  doc.line(6, 63, pageWidth - 6, 63);
+  doc.setLineDashPattern([], 0);
+
+  // Book Info Section
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text('RINCIAN KOLEKSI BUKU', 8, 68);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text('Judul Buku', 8, 73);
+  const splitTitle = doc.splitTextToSize(trx.bookTitle, 62);
+  doc.text(`:`, 34, 73);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(splitTitle, 36, 73);
+
+  const titleHeight = (splitTitle.length - 1) * 3.5;
+  let bookY = 77.5 + titleHeight;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('ISBN / Barcode', 8, bookY);
+  doc.setFont('courier', 'bold');
+  doc.text(`: ${trx.bookIsbn}`, 34, bookY);
+
+  bookY += 4.5;
+  doc.setFont('helvetica', 'normal');
+  doc.text('Tgl Peminjaman', 8, bookY);
+  doc.text(`: ${trx.borrowDate}`, 34, bookY);
+
+  bookY += 4.5;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(220, 38, 38); // Red
+  doc.text('Batas Jatuh Tempo', 8, bookY);
+  doc.text(`: ${trx.dueDate} (WAJIB KEMBALI)`, 34, bookY);
+
+  // Policy Box
+  bookY += 6;
+  doc.setFillColor(254, 242, 242);
+  doc.roundedRect(6, bookY, pageWidth - 12, 16, 1.5, 1.5, 'F');
+  doc.setDrawColor(254, 202, 202);
+  doc.roundedRect(6, bookY, pageWidth - 12, 16, 1.5, 1.5, 'S');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(153, 27, 27);
+  doc.text('KETENTUAN PENGEMBALIAN & DENDA:', 9, bookY + 4);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(5.8);
+  doc.setTextColor(185, 28, 28);
+  doc.text('1. Keterlambatan dikenakan denda Rp 1.000 / hari / buku.', 9, bookY + 7.5);
+  doc.text('2. Harap menjaga kondisi buku dari coretan, sobekan, atau cairan.', 9, bookY + 10.8);
+  doc.text('3. Perpanjangan masa pinjam dapat diajukan via portal siswa.', 9, bookY + 14.1);
+
+  // Signatures
+  const signY = bookY + 22;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(51, 65, 85);
+
+  doc.text('Peminjam / Pemustaka,', 14, signY, { align: 'center' });
+  doc.text('Petugas Sirkulasi,', pageWidth - 18, signY, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`( ${trx.memberName.length > 16 ? trx.memberName.substring(0, 15) + '..' : trx.memberName} )`, 14, signY + 14, { align: 'center' });
+  doc.text(`( ${trx.processedBy || school.librarianName} )`, pageWidth - 18, signY + 14, { align: 'center' });
+
+  // Footer barcode text & timestamp
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(5.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')} • Lumina SIS Cloud Engine`, pageWidth / 2, signY + 20, { align: 'center' });
+
+  doc.save(`Tanda_Terima_${trx.trxCode}_${trx.memberName.replace(/\s+/g, '_')}.pdf`);
+  return true;
 }
 
 /**
@@ -691,6 +1023,198 @@ export function exportMemberCardToPDF(member: Member, school: SchoolProfile) {
   doc.text(`* ${member.memberCode} *`, 42.8, 45, { align: 'center' });
 
   doc.save(`Kartu_Anggota_${member.memberCode}.pdf`);
+  return true;
+}
+
+/**
+ * 5b. EXPORT LAPORAN DAFTAR ANGGOTA & REKAP STATUS (PDF)
+ */
+export function exportMembersToPDF(
+  members: Member[],
+  school: SchoolProfile,
+  filterInfo?: {
+    roleFilter?: string;
+    statusFilter?: string;
+    searchQuery?: string;
+  }
+) {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const totalMembers = members.length;
+  const activeMembers = members.filter(m => m.status === 'active').length;
+  const suspendedMembers = members.filter(m => m.status === 'suspended').length;
+  const expiredMembers = members.filter(m => m.status === 'expired').length;
+  const inactiveMembers = suspendedMembers + expiredMembers;
+  const activeRate = totalMembers > 0 ? ((activeMembers / totalMembers) * 100).toFixed(1) : '0';
+  const totalLoans = members.reduce((sum, m) => sum + (m.activeLoansCount || 0), 0);
+  const totalFines = members.reduce((sum, m) => sum + (m.totalFinesUnpaid || 0), 0);
+
+  const filterSummary = [
+    filterInfo?.roleFilter && filterInfo.roleFilter !== 'all' ? `Kategori: ${filterInfo.roleFilter}` : null,
+    filterInfo?.statusFilter && filterInfo.statusFilter !== 'all' ? `Status: ${filterInfo.statusFilter.toUpperCase()}` : null,
+    filterInfo?.searchQuery ? `Pencarian: "${filterInfo.searchQuery}"` : null,
+  ].filter(Boolean).join(' | ');
+
+  const title = 'LAPORAN REKAPITULASI DATA PEMUSTAKA & STATUS ANGGOTA';
+  const subtitle = `Nomor Dokumen: ${school.libraryCode}/LAP-MBR/${new Date().getFullYear()} | Tanggal: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}${filterSummary ? ` (${filterSummary})` : ''}`;
+
+  let currentY = renderSchoolHeader(doc, school, title, subtitle);
+
+  // Executive Metric Summary Box (Status Breakdown)
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, currentY, pageWidth - 28, 22, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(14, currentY, pageWidth - 28, 22, 2, 2, 'S');
+
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+
+  // Box 1: Total Anggota
+  doc.setTextColor(51, 65, 85);
+  doc.text('TOTAL PEMUSTAKA', 20, currentY + 6.5);
+  doc.setFontSize(10.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${totalMembers} Orang`, 20, currentY + 14.5);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Tercatat di sistem`, 20, currentY + 18.5);
+
+  // Box 2: Anggota Aktif
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(16, 185, 129);
+  doc.text('STATUS AKTIF', 68, currentY + 6.5);
+  doc.setFontSize(10.5);
+  doc.text(`${activeMembers} (${activeRate}%)`, 68, currentY + 14.5);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(16, 185, 129);
+  doc.text(`Akses sirkulasi valid`, 68, currentY + 18.5);
+
+  // Box 3: Nonaktif / Denda
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(239, 68, 68);
+  doc.text('NONAKTIF / SUSPEND', 118, currentY + 6.5);
+  doc.setFontSize(10.5);
+  doc.text(`${inactiveMembers} Anggota`, 118, currentY + 14.5);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(239, 68, 68);
+  doc.text(`${suspendedMembers} Ditangguhkan • ${expiredMembers} Exp`, 118, currentY + 18.5);
+
+  // Box 4: Pinjaman Berjalan
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(14, 165, 233);
+  doc.text('PINJAMAN AKTIF', 165, currentY + 6.5);
+  doc.setFontSize(10.5);
+  doc.text(`${totalLoans} Buku`, 165, currentY + 14.5);
+  doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Tunggakan: Rp ${totalFines.toLocaleString('id-ID')}`, 165, currentY + 18.5);
+
+  currentY += 28;
+
+  // Table Headers
+  doc.setFillColor(15, 23, 42); // Dark slate header
+  doc.rect(14, currentY - 5, pageWidth - 28, 7.5, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.text('No', 16, currentY);
+  doc.text('Kode Anggota', 24, currentY);
+  doc.text('Nama Pemustaka', 54, currentY);
+  doc.text('Peran / Kelas', 102, currentY);
+  doc.text('Email / Kontak', 142, currentY);
+  doc.text('Status', 178, currentY);
+  doc.text('Pinjam', 194, currentY, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  let rowY = currentY + 5.5;
+
+  if (members.length === 0) {
+    doc.setTextColor(148, 163, 184);
+    doc.text('Tidak ada data anggota pemustaka yang sesuai kriteria filter.', pageWidth / 2, rowY + 8, { align: 'center' });
+    rowY += 16;
+  } else {
+    members.forEach((m, index) => {
+      if (rowY > 260) {
+        doc.addPage();
+        rowY = 20;
+      }
+
+      if (index % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(14, rowY - 4, pageWidth - 28, 6, 'F');
+      }
+
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${index + 1}`, 16, rowY);
+      doc.text(m.memberCode, 24, rowY);
+
+      const safeName = m.name.length > 24 ? m.name.substring(0, 23) + '..' : m.name;
+      doc.text(safeName, 54, rowY);
+
+      const roleClass = `${m.role}${m.classOrDept ? ` (${m.classOrDept})` : ''}`;
+      const safeRole = roleClass.length > 22 ? roleClass.substring(0, 21) + '..' : roleClass;
+      doc.text(safeRole, 102, rowY);
+
+      const contactStr = m.email ? (m.email.length > 20 ? m.email.substring(0, 19) + '..' : m.email) : (m.phone || '-');
+      doc.text(contactStr, 142, rowY);
+
+      if (m.status === 'active') {
+        doc.setTextColor(16, 185, 129);
+        doc.text('AKTIF', 178, rowY);
+      } else if (m.status === 'suspended') {
+        doc.setTextColor(239, 68, 68);
+        doc.text('SUSPEND', 178, rowY);
+      } else {
+        doc.setTextColor(245, 158, 11);
+        doc.text('EXPIRED', 178, rowY);
+      }
+
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${m.activeLoansCount}/${m.maxBorrowLimit}`, 194, rowY, { align: 'right' });
+
+      rowY += 6;
+    });
+  }
+
+  // Formal Signatures Section
+  const footerY = Math.max(rowY + 12, 240);
+  const nowStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+
+  doc.text('Mengetahui,', 25, footerY);
+  doc.text('Kepala Perpustakaan', 25, footerY + 5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(school.librarianName, 25, footerY + 25);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text('NIP. 19850412 200902 2 004', 25, footerY + 29);
+  doc.text(`Unit Layanan Pemustaka`, 25, footerY + 33);
+
+  doc.setFontSize(8.5);
+  doc.text(`${school.city}, ${nowStr}`, pageWidth - 75, footerY);
+  doc.text('Mengesahkan, Kepala Sekolah', pageWidth - 75, footerY + 5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(school.principalName, pageWidth - 75, footerY + 25);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text('NIP. 19710318 199703 1 002', pageWidth - 75, footerY + 29);
+  doc.text(school.schoolName, pageWidth - 75, footerY + 33);
+
+  doc.save(`Laporan_Data_Anggota_Lumina_${new Date().toISOString().slice(0, 10)}.pdf`);
   return true;
 }
 
